@@ -325,7 +325,6 @@ local keyword_reply =
 local nonalpha = R(" @","[`","{~")
 
 local mkpattern,subpattern do
-  local nonalpha = R(" @","[`","{~")
   local pattern = Cf(
 	(
 	    R("AZ","az") / function(c) return P(c:lower()) + P(c:upper()) end
