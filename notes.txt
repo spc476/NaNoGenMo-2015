@@ -1,3 +1,5 @@
+
+https://github.com/apg/chatter/blob/master/eliza.scm
 http://git.savannah.gnu.org/cgit/emacs.git/tree/lisp/play/doctor.el
 
 http://www.chayden.net/eliza/Eliza.html
