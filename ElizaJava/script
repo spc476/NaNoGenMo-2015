@@ -42,25 +42,37 @@
 ; of.  Here is an explanation of the tags.
 ; 
 ; initial:	Eliza says this when it starts.
-; final:		Eliza says this when it quits.
-; quit:		If the input is this, then Eliza quits.  Any number permitted.
-; pre:		Part of the pre-substitution list.  If the first word appears in 
-; 		    the sentence, it is replaced by the rest of the words.
-; post:		Part of the post-subsititution list.  If the first word appears 
-; 		    in the sentence, it is replaced by the rest of the words.
-; key:		A keyword.  Keywords with greater weight are selected in 
-; 		    preference to ones with lesser weight.
-; 		    If no weight is given, it is assumed to be 1.
-; decomp:		A decomposition pattern.  The character * stands for any 
-; 		    sequence of words.  
-; reasmb:		A reassembly pattern.  A set of words matched by * in 
-; 		    the decomposition pattern can be used as part of the reassembly.
-; 		    For instance, (2) inserts the words matched by the second * 
-; 		    in the decomposition pattern.
-; synon:		A list of synonyms.  In a decomposition rule, for instance, @be
-; 		    matches any of the words "be am is are was" because of the line:
-; 			"synon: be am is are was".  The match @be also counts as a *
-; 		    in numbering the matches for use by reassembly rules.
+;
+; final:	Eliza says this when it quits.
+;
+; quit:		If the input is this, then Eliza quits.  Any number
+; 		permitted.
+;
+; pre:		Part of the pre-substitution list.  If the first word
+; 		appears in the sentence, it is replaced by the rest of the
+; 		words.
+;
+; post:		Part of the post-subsititution list.  If the first word
+; 		appears in the sentence, it is replaced by the rest of the
+; 		words.
+;
+; key:		A keyword.  Keywords with greater weight are selected in
+; 		preference to ones with lesser weight.  If no weight is
+; 		given, it is assumed to be 1.
+;
+; decomp:	A decomposition pattern.  The character * stands for any
+; 		sequence of words.
+;
+; reasmb:	A reassembly pattern.  A set of words matched by * in the
+; 		decomposition pattern can be used as part of the reassembly. 
+; 		For instance, (2) inserts the words matched by the second *
+; 		in the decomposition pattern.
+;
+; synon:	A list of synonyms.  In a decomposition rule, for instance,
+; 		@be matches any of the words "be am is are was" because of
+; 		the line: "synon: be am is are was".  The match @be also
+; 		counts as a * in numbering the matches for use by reassembly
+; 		rules.
 ; 
 ; Other Special Rules
 ;
