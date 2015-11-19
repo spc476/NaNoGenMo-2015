@@ -129,8 +129,15 @@ typedef struct system
 
 /********************************************************************/
 
-static uint16_t g_dtaseg;
-static uint16_t g_dtaoff;
+static void dump_memory(unsigned char *mem,size_t size)
+{
+  FILE *fp = fopen("msdos.core","wb");
+  if (fp != NULL)
+  {
+    fwrite(mem,1,size,fp);
+    fclose(fp);
+  }
+}
 
 /********************************************************************/
 
@@ -282,79 +289,86 @@ static int load_exe(
 
 /********************************************************************/
 
-static void ms_dos(struct vm86plus_struct *vm,unsigned char *mem)
+static void ms_dos(system__s *sys)
 {
   int ah;
   size_t idx;
   fcb__s *fcb;
   char drive;
+ 
+  assert(sys != NULL); 
   
-  assert(vm  != NULL);
-  
-  ah = (vm->regs.eax >> 8) & 255;
+  ah = (sys->vm.regs.eax >> 8) & 255;
   switch(ah)
   {
     case 0:	/* exit */
          exit(0);
     
     case 0x06: /* direct console I/O */
-         vm->regs.eflags |= 0x40;
+         sys->vm.regs.eflags |= 0x40;
          break;
     
     case 0x0F: /* Open file (1.0 version) */
-         idx   = vm->regs.ds * 16 + (vm->regs.edx & 0xFFFF);
+         idx   = sys->vm.regs.ds * 16 + (sys->vm.regs.edx & 0xFFFF);
          assert(idx < 1024*1024uL);
-         fcb   = (fcb__s *)&mem[idx];
+         fcb   = (fcb__s *)&sys->mem[idx];
          drive = '@' + fcb->drive;
          fprintf(stderr,"%c %.8s %.3s\n",drive,fcb->name,fcb->ext);
-         dump_regs(&vm->regs);
+         dump_regs(&sys->vm.regs);
+         dump_memory(sys->mem,1024*1024);
          exit(1);
          
     case 0x1A: /* set DTA address (sigh) */
-         g_dtaseg = vm->regs.ds;
-         g_dtaoff = vm->regs.edx & 0xFFFF;
+         sys->dtaseg = sys->vm.regs.ds;
+         sys->dtaoff = sys->vm.regs.edx & 0xFFFF;
          break;
          
     default:
          fprintf(stderr,"\n\nUnimplented function %02X\n",ah);
-         dump_regs(&vm->regs);
+         dump_regs(&sys->vm.regs);
          exit(1);
   }  
 }
 
 /********************************************************************/
 
+static system__s g_sys = { .mem = MAP_FAILED };
+
+static void cleanup(void)
+{
+  if (g_sys.mem != MAP_FAILED)
+    munmap(g_sys.mem,1024*1024);
+}
+
 int main(int argc,char *argv[])
 {
-  struct vm86plus_struct  vm;
-  unsigned char          *mem;
-  
   if (argc < 2)
   {
     fprintf(stderr,"usage: %s file\n",argv[0]);
     return EXIT_FAILURE;
   }
   
+  atexit(cleanup);
   crashreport(SIGSEGV);
   
-  mem = mmap(0,1024*1024,PROT_EXEC | PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED,-1,0);
-  if (mem == MAP_FAILED)
+  g_sys.mem = mmap(0,1024*1024,PROT_EXEC | PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED,-1,0);
+  if (g_sys.mem == MAP_FAILED)
   {
     perror("mmap()");
     return EXIT_FAILURE;
   }
   
-  memset(mem,0xCC,1024*1024);  
-  memset(&vm,0,sizeof(vm));
-  memset(&vm.int_revectored,  255,sizeof(vm.int_revectored));
-  memset(&vm.int21_revectored,255,sizeof(vm.int21_revectored));
-  vm.cpu_type = CPU_086;
+  memset(g_sys.mem,0xCC,1024*1024);  
+  memset(&g_sys.vm,0,sizeof(g_sys.vm));
+  memset(&g_sys.vm.int_revectored,  255,sizeof(g_sys.vm.int_revectored));
+  memset(&g_sys.vm.int21_revectored,255,sizeof(g_sys.vm.int21_revectored));
+  g_sys.vm.cpu_type = CPU_086;
   
-  load_exe(argv[1],mem,&vm.regs);
+  load_exe(argv[1],g_sys.mem,&g_sys.vm.regs);
   
   while(true)
   {
-    int rc   = vm86(VM86_ENTER,&vm);
+    int rc   = vm86(VM86_ENTER,&g_sys.vm);
     int type = VM86_TYPE(rc);
     int arg  = VM86_ARG(rc);
     
@@ -377,10 +391,10 @@ int main(int argc,char *argv[])
       return EXIT_FAILURE;
     }
     
-    ms_dos(&vm,mem);
+    ms_dos(&g_sys);
   }
   
-  munmap(mem,1024*1024);
+  dump_memory(g_sys.mem,1024*1024);
   return EXIT_SUCCESS;
 }
 
