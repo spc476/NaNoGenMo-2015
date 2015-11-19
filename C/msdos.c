@@ -31,6 +31,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <errno.h>
 #include <assert.h>
@@ -49,6 +50,15 @@
 
 /********************************************************************/
 
+typedef struct fcbs	/* short FCB block */
+{
+  char     drive;
+  char     name[8];
+  char     ext[3];
+  uint16_t cblock;
+  uint16_t recsize;
+} __attribute__((packed)) fcbs__s;
+
 typedef struct fcb
 {
   char     drive;
@@ -56,7 +66,13 @@ typedef struct fcb
   char     ext[3];
   uint16_t cblock;
   uint16_t recsize;
-} __attribute__((packed)) fcb__s;
+  uint32_t size;
+  uint16_t date;
+  uint16_t time;
+  uint16_t rsvp0;
+  uint8_t  crecnum;
+  uint32_t relrec;
+} fcb__s;
 
 typedef struct psp
 {
@@ -74,8 +90,8 @@ typedef struct psp
   uint8_t  rsvp2[34];
   uint8_t  mscall[3];		/* 0xCD , 0x21 , 0xCB */
   uint8_t  rsvp3[9];
-  fcb__s   primary;
-  fcb__s   secondary;
+  fcbs__s  primary;
+  fcbs__s  secondary;
   uint8_t  rsvp[4];
   uint8_t  cmdlen;
   uint8_t  cmd[127];
@@ -101,13 +117,38 @@ typedef struct exehdr
 
 /********************************************************************/
 
+static uint16_t g_dtaseg;
+static uint16_t g_dtaoff;
+
+/********************************************************************/
+
 static void dump_regs(struct vm86_regs *regs)
 {
+  char flags[17];
+  
+  flags[ 0] = '-';
+  flags[ 1] = '-';
+  flags[ 2] = '-';
+  flags[ 3] = '-';
+  flags[ 4] = regs->eflags & 0x0800 ? 'O' : 'o';
+  flags[ 5] = regs->eflags & 0x0400 ? 'D' : 'd';
+  flags[ 6] = regs->eflags & 0x0200 ? 'I' : 'i';
+  flags[ 7] = regs->eflags & 0x0100 ? 'T' : 't';
+  flags[ 8] = regs->eflags & 0x0080 ? 'S' : 's';
+  flags[ 9] = regs->eflags & 0x0040 ? 'Z' : 'z';
+  flags[10] = '-';
+  flags[11] = regs->eflags & 0x0010 ? 'A' : 'a';
+  flags[12] = '-';
+  flags[13] = regs->eflags & 0x0004 ? 'P' : 'p';
+  flags[14] = '-';
+  flags[15] = regs->eflags & 0x0001 ? 'C' : 'c';
+  flags[16] = '\0';
+  
   fprintf(
           stderr,
           "AX: %04lX BX: %04lX CX: %04lX DX: %04lX\n"
           "SI: %04lX DI: %04lX BP: %04lX SP: %04lX\n"
-          "IP: %04lX FL: %04lX\n"
+          "IP: %04lX FL: %s\n"
           "CS: %04X DS: %04X ES: %04X SS: %04X\n"
           "\n",
           regs->eax & 0xFFFF,
@@ -119,7 +160,7 @@ static void dump_regs(struct vm86_regs *regs)
           regs->ebp & 0xFFFF,
           regs->esp & 0xFFFF,
           regs->eip & 0xFFFF,
-          regs->eflags & 0xFFFF,
+          flags,
           regs->cs,
           regs->ds,
           regs->es,
@@ -176,7 +217,7 @@ static int load_exe(
   }
   
   fread(&hdr,sizeof(hdr),1,fp);
-  
+#if 0
   fprintf(
     stderr,
     "lastpage:  %d\n"
@@ -201,7 +242,7 @@ static int load_exe(
     hdr.reltable,
     hdr.overlay
   );
-  
+#endif
   regs->cs  = hdr.init_cs + SEG_LOAD;
   regs->eip = hdr.init_ip;
   regs->ss  = hdr.init_ss + SEG_LOAD;
@@ -229,11 +270,52 @@ static int load_exe(
 
 /********************************************************************/
 
+static void ms_dos(struct vm86plus_struct *vm,unsigned char *mem)
+{
+  int ah;
+  size_t idx;
+  fcb__s *fcb;
+  char drive;
+  
+  assert(vm  != NULL);
+  
+  ah = (vm->regs.eax >> 8) & 255;
+  switch(ah)
+  {
+    case 0:	/* exit */
+         exit(0);
+    
+    case 0x06: /* direct console I/O */
+         vm->regs.eflags |= 0x40;
+         break;
+    
+    case 0x0F: /* Open file (1.0 version) */
+         idx   = vm->regs.ds * 16 + (vm->regs.edx & 0xFFFF);
+         assert(idx < 1024*1024uL);
+         fcb   = (fcb__s *)&mem[idx];
+         drive = '@' + fcb->drive;
+         fprintf(stderr,"%c %.8s %.3s\n",drive,fcb->name,fcb->ext);
+         dump_regs(&vm->regs);
+         exit(1);
+         
+    case 0x1A: /* set DTA address (sigh) */
+         g_dtaseg = vm->regs.ds;
+         g_dtaoff = vm->regs.edx & 0xFFFF;
+         break;
+         
+    default:
+         fprintf(stderr,"\n\nUnimplented function %02X\n",ah);
+         dump_regs(&vm->regs);
+         exit(1);
+  }  
+}
+
+/********************************************************************/
+
 int main(int argc,char *argv[])
 {
   struct vm86plus_struct  vm;
   unsigned char          *mem;
-  int                     rc;
   
   if (argc < 2)
   {
@@ -257,15 +339,33 @@ int main(int argc,char *argv[])
   vm.cpu_type = CPU_086;
   
   load_exe(argv[1],mem,&vm.regs);
-  dump_regs(&vm.regs);
   
-  rc = vm86(VM86_ENTER,&vm);
-  if (rc < 0)
-    perror("vm86()");
-  else
+  while(true)
   {
-    printf("%d:%d\n",VM86_TYPE(rc),VM86_ARG(rc));
-    dump_regs(&vm.regs);
+    int rc   = vm86(VM86_ENTER,&vm);
+    int type = VM86_TYPE(rc);
+    int arg  = VM86_ARG(rc);
+    
+    if (rc < 0)
+    {
+      perror("vm86()");
+      return EXIT_FAILURE;
+    }
+    
+    if (type != VM86_INTx)
+    {
+      fprintf(stderr,"ERROR: type=%d arg=%d\n",type,arg);
+      return EXIT_FAILURE;
+    }
+    
+    if (arg == 0x20) break;
+    if (arg != 0x21)
+    {
+      fprintf(stderr,"unexpected interrupt %02X\n",arg);
+      return EXIT_FAILURE;
+    }
+    
+    ms_dos(&vm,mem);
   }
   
   munmap(mem,1024*1024);
