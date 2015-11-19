@@ -121,8 +121,7 @@ typedef struct system
 {
   struct vm86plus_struct  vm;
   unsigned char          *mem;
-  size_t                  fcbidx[16];
-  fcb__s                  fcbs[16];
+  fcb__s                 *fcbs[16];
   FILE                   *fp[16];
   size_t                  fcb_max;
   uint16_t                dtaseg;
@@ -291,14 +290,58 @@ static int load_exe(
 
 /********************************************************************/
 
+static void mkfilename(char *fname,fcb__s *fcb)
+{
+  size_t didx = 0;
+  
+  assert(fname != NULL);
+  assert(fcb   != NULL);
+  
+  for (size_t i = 0 ; (i < sizeof(fcb->name)) && (fcb->name[i] != ' ') ; i++)
+    fname[didx++] = fcb->name[i];
+  
+  fname[didx++] = '.';
+  
+  for (size_t i = 0 ; (i < sizeof(fcb->ext)) && (fcb->ext[i] != ' ') ; i++)
+    fname[didx++] = fcb->ext[i];
+  
+  fname[didx] = '\0';
+}
+
+/********************************************************************/
+
+static int open_file(system__s *sys,fcb__s *fcb)
+{
+  char    filename[FILENAME_MAX];
+  FILE   *fp;
+  size_t  idx;
+  
+  assert(sys != NULL);
+  assert(fcb != NULL);
+  
+  if (sys->fcb_max == 16)
+    return EMFILE;
+    
+  idx = sys->fcb_max++;
+  mkfilename(filename,fcb);
+  fp = fopen(filename,"r+b");
+  if (fp == NULL)
+    return errno;
+  
+  sys->fcbs[idx] = fcb;
+  sys->fp[idx]   = fp;
+  return 0;
+}
+
+/********************************************************************/
+  
 static void ms_dos(system__s *sys)
 {
-  int ah;
-  int dl;
-  size_t idx;
+  int     ah;
+  int     dl;
+  size_t  idx;
   fcb__s *fcb;
-  char drive;
- 
+  
   assert(sys != NULL); 
   
   ah = (sys->vm.regs.eax >> 8) & 255;
@@ -323,14 +366,18 @@ static void ms_dos(system__s *sys)
          break;
     
     case 0x0F: /* Open file (1.0 version) */
+         sys->vm.regs.eax &= 255;
          idx   = sys->vm.regs.ds * 16 + (sys->vm.regs.edx & 0xFFFF);
          assert(idx < 1024*1024uL);
          fcb   = (fcb__s *)&sys->mem[idx];
-         drive = '@' + fcb->drive;
-         fprintf(stderr,"%c %.8s %.3s\n",drive,fcb->name,fcb->ext);
-         dump_regs(&sys->vm.regs);
-         dump_memory(sys->mem,1024*1024);
-         exit(1);
+         if (fcb->drive > 0)
+           sys->vm.regs.eax |= 255;
+         else
+         {
+           if (open_file(sys,fcb) != 0)
+             sys->vm.regs.eax |= 255;
+         }
+         break;
          
     case 0x1A: /* set DTA address (sigh) */
          sys->dtaseg = sys->vm.regs.ds;
