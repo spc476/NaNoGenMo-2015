@@ -292,6 +292,7 @@ static int load_exe(
 static void ms_dos(system__s *sys)
 {
   int ah;
+  int dl;
   size_t idx;
   fcb__s *fcb;
   char drive;
@@ -305,6 +306,9 @@ static void ms_dos(system__s *sys)
          exit(0);
     
     case 0x06: /* direct console I/O */
+         dl = sys->vm.regs.edx & 255;
+         if (dl < 255)
+           putchar(dl);
          sys->vm.regs.eflags |= 0x40;
          break;
     
