@@ -30,6 +30,6 @@ LDLIBS = -lcgi6
 
 all : msdos
 clean:
-	$(RM) *~ *.o msdos
+	$(RM) *~ *.o msdos core.* msdos.core
 
 msdos:
