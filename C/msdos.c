@@ -115,6 +115,18 @@ typedef struct exehdr
   uint16_t overlay;
 } __attribute__((packed)) exehdr__s;
 
+typedef struct system
+{
+  struct vm86plus_struct  vm;
+  unsigned char          *mem;
+  size_t                  fcbidx[16];
+  fcb__s                  fcbs[16];
+  FILE                   *fp[16];
+  size_t                  fcb_max;
+  uint16_t                dtaseg;
+  uint16_t                dtaoff;
+} system__s;
+
 /********************************************************************/
 
 static uint16_t g_dtaseg;
