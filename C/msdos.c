@@ -315,7 +315,11 @@ static void ms_dos(system__s *sys)
            sys->vm.regs.eax &= 0xFF;
            sys->vm.regs.eax |= dl;
          }
-         sys->vm.regs.eflags |= 0x40;
+         else
+         {
+           sys->vm.regs.eflags |= 0x40;
+           sys->vm.regs.eax &= 0xFF;
+         }
          break;
     
     case 0x0F: /* Open file (1.0 version) */
