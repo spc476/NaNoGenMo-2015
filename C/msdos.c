@@ -392,6 +392,28 @@ static void ms_dos(system__s *sys)
          sys->dtaseg = sys->vm.regs.ds;
          sys->dtaoff = sys->vm.regs.edx & 0xFFFF;
          break;
+    
+    case 0x21: /* read record from FCB file */
+         fprintf(
+           stderr,
+           "name:    %.8s\n"
+           "ext:     %.3s\n"
+           "cblock:  %d\n"
+           "recsize: %d\n"
+           "size:    %lu\n"
+           "crecnum: %d\n"
+           "relrec:  %lu\n"
+           "\n",
+           fcb->name,
+           fcb->ext,
+           fcb->cblock,
+           fcb->recsize,
+           (unsigned long)fcb->size,
+           fcb->crecnum,
+           (unsigned long)fcb->relrec
+         );
+         exit(1);
+         break;
          
     default:
          fprintf(stderr,"\n\nUnimplented function %02X\n",ah);
