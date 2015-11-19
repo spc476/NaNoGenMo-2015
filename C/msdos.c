@@ -310,7 +310,11 @@ static void ms_dos(system__s *sys)
     case 0x06: /* direct console I/O */
          dl = sys->vm.regs.edx & 255;
          if (dl < 255)
+         {
            putchar(dl);
+           sys->vm.regs.eax &= 0xFF;
+           sys->vm.regs.eax |= dl;
+         }
          sys->vm.regs.eflags |= 0x40;
          break;
     
