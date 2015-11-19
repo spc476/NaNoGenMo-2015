@@ -22,6 +22,8 @@
 
 /* http://man7.org/linux/man-pages/man2/vm86.2.html */
 /* http://www.ecstaticlyrics.com/notes/vm86 */
+/* http://stanislavs.org/helppc/int_21.html */
+/* http://www.oldlinux.org/Linux.old/docs/interrupts/int-html/int-21.htm */
 /* environment:		*/
 /*	PATH=		*/
 /*	COMSPEC=	*/
