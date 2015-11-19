@@ -1,20 +1,224 @@
 
 /* http://man7.org/linux/man-pages/man2/vm86.2.html */
 /* http://www.ecstaticlyrics.com/notes/vm86 */
+/* environment:		*/
+/*	PATH=		*/
+/*	COMSPEC=	*/
+/*	PROMPT=		*/
+/*	TMP=		*/
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
+#include <errno.h>
+#include <assert.h>
 
 #include <sys/vm86.h>
 #include <sys/mman.h>
 #include <cgilib6/crashreport.h>
 
-int main(void)
+#define SEG_ENV		0x1000
+#define SEG_PSP		0x2000
+#define SEG_LOAD	0x2010
+
+#define MEM_ENV		(SEG_ENV  * 16)
+#define MEM_PSP		(SEG_PSP  * 16)
+#define MEM_LOAD	(SEG_LOAD * 16)
+
+/********************************************************************/
+
+typedef struct fcb
+{
+  char     drive;
+  char     name[8];
+  char     ext[3];
+  uint16_t cblock;
+  uint16_t recsize;
+} __attribute__((packed)) fcb__s;
+
+typedef struct psp
+{
+  uint8_t  warmboot[2];		/* 0xCD, 0x20 */
+  uint16_t last_seg;
+  uint8_t  rsvp0;
+  uint8_t  oldmscall_jmp;	/* 0x9A, offlo, offhi, seglo, seghi */
+  uint16_t oldmscall_off;
+  uint16_t oldmscall_seg;
+  uint16_t termaddr[2];
+  uint16_t ctrlcaddr[2];
+  uint16_t erroraddr[2];
+  uint8_t  rsvp1[22];
+  uint16_t envp;
+  uint8_t  rsvp2[34];
+  uint8_t  mscall[3];		/* 0xCD , 0x21 , 0xCB */
+  uint8_t  rsvp3[9];
+  fcb__s   primary;
+  fcb__s   secondary;
+  uint8_t  rsvp[4];
+  uint8_t  cmdlen;
+  uint8_t  cmd[127];
+} __attribute__((packed)) psp__s;
+
+typedef struct exehdr
+{
+  uint8_t  magic[2];	/* 0x4D, 0x5A */
+  uint16_t lastpagesize;
+  uint16_t filepages;
+  uint16_t numreloc;
+  uint16_t hdrpara;
+  uint16_t minalloc;
+  uint16_t maxalloc;
+  uint16_t init_ss;
+  uint16_t init_sp;
+  uint16_t chksum;
+  uint16_t init_ip;
+  uint16_t init_cs;
+  uint16_t reltable;
+  uint16_t overlay;
+} __attribute__((packed)) exehdr__s;
+
+/********************************************************************/
+
+static void dump_regs(struct vm86_regs *regs)
+{
+  fprintf(
+          stderr,
+          "AX: %04lX BX: %04lX CX: %04lX DX: %04lX\n"
+          "SI: %04lX DI: %04lX BP: %04lX SP: %04lX\n"
+          "IP: %04lX FL: %04lX\n"
+          "CS: %04X DS: %04X ES: %04X SS: %04X\n"
+          "\n",
+          regs->eax & 0xFFFF,
+          regs->ebx & 0xFFFF,
+          regs->ecx & 0xFFFF,
+          regs->edx & 0xFFFF,
+          regs->esi & 0xFFFF,
+          regs->edi & 0xFFFF,
+          regs->ebp & 0xFFFF,
+          regs->esp & 0xFFFF,
+          regs->eip & 0xFFFF,
+          regs->eflags & 0xFFFF,
+          regs->cs,
+          regs->ds,
+          regs->es,
+          regs->ss
+  );
+}
+
+/********************************************************************/
+
+static int load_exe(
+        const char       *fname,
+        unsigned char    *mem,
+        struct vm86_regs *regs
+)
+{
+  exehdr__s  hdr;
+  size_t     binsize;
+  size_t     i;
+  uint16_t   off[2];
+  FILE      *fp;
+  psp__s    *psp;
+  uint16_t  *patch;
+  size_t     offset;
+  
+  assert(fname != NULL);
+  assert(regs  != NULL);
+  
+  memset(&mem[MEM_ENV],0,256);
+  psp = (psp__s *)&mem[MEM_PSP];
+  
+  memset(psp,0,256);
+  psp->warmboot[0]   = 0xCD;
+  psp->warmboot[1]   = 0x20;
+  psp->oldmscall_jmp = 0x9A;
+  psp->oldmscall_off = 0;
+  psp->oldmscall_seg = SEG_PSP;
+  psp->termaddr[0]   = 0;
+  psp->termaddr[1]   = SEG_PSP;
+  psp->ctrlcaddr[0]  = 0;
+  psp->ctrlcaddr[1]  = SEG_PSP;
+  psp->erroraddr[0]  = 0;
+  psp->erroraddr[1]  = SEG_PSP;
+  psp->envp          = SEG_ENV;
+  psp->mscall[0]     = 0xCD;
+  psp->mscall[1]     = 0x21;
+  psp->mscall[2]     = 0xCB;
+  psp->cmdlen        = 0;
+  
+  fp = fopen(fname,"rb");
+  if (fp == NULL)
+  {
+    perror(fname);
+    return errno;
+  }
+  
+  fread(&hdr,sizeof(hdr),1,fp);
+  
+  fprintf(
+    stderr,
+    "lastpage:  %d\n"
+    "filepages: %d (%u)\n"
+    "numreloc:  %d\n"
+    "hdrpara:   %d\n"
+    "minalloc:  %d\n"
+    "maxalloc:  %d\n"
+    "SS:SP:     %04X:%04X\n"
+    "CS:IP:     %04X:%04X\n"
+    "reltable:  %04X\n"
+    "overlay:   %d\n"
+    "\n",
+    hdr.lastpagesize,
+    hdr.filepages , hdr.filepages * 512 + hdr.lastpagesize,
+    hdr.numreloc,
+    hdr.hdrpara,
+    hdr.minalloc,
+    hdr.maxalloc,
+    hdr.init_ss,hdr.init_sp,
+    hdr.init_cs,hdr.init_ip,
+    hdr.reltable,
+    hdr.overlay
+  );
+  
+  regs->cs  = hdr.init_cs + SEG_LOAD;
+  regs->eip = hdr.init_ip;
+  regs->ss  = hdr.init_ss + SEG_LOAD;
+  regs->esp = hdr.init_sp;
+  regs->ds  = SEG_PSP;
+  regs->es  = SEG_PSP;
+  regs->eax = 0xFFFF;
+  binsize   = (hdr.filepages * 512 + hdr.lastpagesize) - (hdr.hdrpara * 16);
+  
+  fseek(fp,hdr.hdrpara * 16,SEEK_SET);
+  fread(&mem[MEM_LOAD],1,binsize,fp);
+  fseek(fp,hdr.reltable,SEEK_SET);
+  
+  for (i = 0 ; i < hdr.numreloc ; i++)
+  {
+    fread(&off,sizeof(off),1,fp);
+    offset  = off[1] * 16 + off[0];
+    patch   = (uint16_t *)&mem[MEM_LOAD + offset];
+    *patch += (uint16_t)SEG_LOAD;    
+  }
+  
+  fclose(fp);
+  return 0;  
+}
+
+/********************************************************************/
+
+int main(int argc,char *argv[])
 {
   struct vm86plus_struct  vm;
   unsigned char          *mem;
   int                     rc;
+  
+  if (argc < 2)
+  {
+    fprintf(stderr,"usage: %s file\n",argv[0]);
+    return EXIT_FAILURE;
+  }
   
   crashreport(SIGSEGV);
   
@@ -25,23 +229,14 @@ int main(void)
     return EXIT_FAILURE;
   }
   
+  memset(mem,0xCC,1024*1024);  
   memset(&vm,0,sizeof(vm));
   memset(&vm.int_revectored,  255,sizeof(vm.int_revectored));
   memset(&vm.int21_revectored,255,sizeof(vm.int21_revectored));
-  
   vm.cpu_type = CPU_086;
-  vm.regs.cs  = 0x100;
-  vm.regs.eip = 0x10;
-  vm.regs.ss  = 0x200;
-  vm.regs.esp = 0xFFFE;
   
-  mem[0x1010] = 0xB8;
-  mem[0x1011] = 0x34;
-  mem[0x1012] = 0x12;  
-  mem[0x1013] = 0xCD;
-  mem[0x1014] = 0x21;
-  mem[0x1015] = 0xCD;
-  mem[0x1016] = 0x20;
+  load_exe(argv[1],mem,&vm.regs);
+  dump_regs(&vm.regs);
   
   rc = vm86(VM86_ENTER,&vm);
   if (rc < 0)
@@ -49,10 +244,11 @@ int main(void)
   else
   {
     printf("%d:%d\n",VM86_TYPE(rc),VM86_ARG(rc));
-    printf("%08lX %08lX %08lX\n",vm.regs.eip,vm.regs.eax,vm.regs.orig_eax);
-    printf("%02X\n",mem[0x1010]);
+    dump_regs(&vm.regs);
   }
   
   munmap(mem,1024*1024);
   return EXIT_SUCCESS;
 }
+
+/********************************************************************/
