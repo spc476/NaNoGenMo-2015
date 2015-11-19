@@ -38,6 +38,9 @@
 #include <errno.h>
 #include <assert.h>
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include <sys/vm86.h>
 #include <sys/mman.h>
 #include <cgilib6/crashreport.h>
@@ -312,22 +315,28 @@ static void mkfilename(char *fname,fcb__s *fcb)
 
 static int open_file(system__s *sys,fcb__s *fcb)
 {
-  char    filename[FILENAME_MAX];
-  FILE   *fp;
-  size_t  idx;
-  
+  char         filename[FILENAME_MAX];
+  FILE        *fp;
+  size_t       idx;
+  struct stat  info;
+
   assert(sys != NULL);
   assert(fcb != NULL);
   
   if (sys->fcb_max == 16)
     return EMFILE;
-    
+  
   idx = sys->fcb_max++;
   mkfilename(filename,fcb);
+  
+  if (stat(filename,&info) < 0)
+    return errno;
+  
   fp = fopen(filename,"r+b");
   if (fp == NULL)
     return errno;
   
+  fcb->size      = info.st_size;
   sys->fcbs[idx] = fcb;
   sys->fp[idx]   = fp;
   return 0;
