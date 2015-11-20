@@ -590,6 +590,33 @@ static void ms_dos(system__s *sys)
          dump_fcb__s(fcb);
          break;
          
+    case 0x22: /* write record to FCB file */
+         sys->vm.regs.eax &= ~255;
+         idx = sys->vm.regs.ds * 16 + (sys->vm.regs.edx & 0xFFFF);
+         fcb = (fcb__s *)&sys->mem[idx];
+         i   = find_fcb(sys,fcb);
+         assert(i > -1);
+         
+         pos = fcb->relrec * fcb->recsize;
+         
+         fcb->cblock  = (pos / 512) & 0xFFFF;       /* I guess? */
+         fcb->crecnum = (pos % 512) / fcb->recsize; /* I guess? */
+         fseek(sys->fp[i],pos,SEEK_SET);
+         bufidx = (size_t)sys->dtaseg * 16 + (size_t)sys->dtaoff;
+         buf    = &sys->mem[bufidx];
+         fwrite(buf,1,fcb->recsize,sys->fp[i]);
+         
+         /*-----------------------------------------------------------
+         ; all the documentation I've read says this function DOES NOT
+         ; increment the relative record number.  But RACTER (my test
+         ; program) won't work properly unless relrec IS incremented. 
+         ; MS-DOS bug?  Documentation problem?
+         ;------------------------------------------------------------*/
+         
+         fcb->relrec++;
+         dump_fcb__s(fcb);
+         break;
+    
     default:
          fprintf(stderr,"\n\nUnimplented function %02X\n",ah);
          dump_regs(&sys->vm.regs);
