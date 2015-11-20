@@ -35,6 +35,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <string.h>
 #include <errno.h>
 #include <assert.h>
 
@@ -130,6 +131,22 @@ typedef struct system
   FILE                   *fp[16];
   uint16_t                dtaseg;
   uint16_t                dtaoff;
+  
+  /*---------------------------------------------------------------------
+  ; Basically, before we can actually return data, we need to wait for the
+  ; prompt, which is
+  ;
+  ;	CR LF '>'
+  ;
+  ; When we see those three characters printed, then we can turn on input. 
+  ; We keep going until we get a CR, then we turn output off.  This is
+  ; totally a hack to get Racter working.  It is *NOT* a general purpose
+  ; solution, but I don't care about a general purpose solution at this
+  ; time.  This will work.
+  ;---------------------------------------------------------------------*/
+  
+  bool input;
+  char prompt[4];
 } system__s;
 
 /********************************************************************/
@@ -411,6 +428,7 @@ static void ms_dos(system__s *sys)
   int            ah;
   int            dl;
   int            i;
+  int            c;
   size_t         idx;
   size_t         bufidx;
   unsigned long  pos;
@@ -434,57 +452,42 @@ static void ms_dos(system__s *sys)
            putchar(dl);
            sys->vm.regs.eax &= 0xFF;
            sys->vm.regs.eax |= dl;
+           sys->prompt[0]    = sys->prompt[1];
+           sys->prompt[1]    = sys->prompt[2];
+           sys->prompt[2]    = dl;
          }
          
          /*--------------------------------------------------------
-         ; Erm ... okay ... not sure how to handle this.  
+         ; Erm ... okay ... you are not expected to understand this.
+         ; I'm not sure I do.
          ;--------------------------------------------------------*/
          
          else
          {
-           static bool LF = false;
-           struct pollfd fds;
-           int           rc;
-           char          c;
-           
-           if (LF)
+           if (!sys->input)
            {
-             LF = false;
-             c  = '\n';
-           }
-           else
-           {
-             fds.fd = 0;	/* STDIN */
-             fds.events = POLLIN;
-             rc = poll(&fds,1,0);
-             if (rc <= 0)
+             if (strcmp(sys->prompt,"\r\n>") == 0)
+             {
+               fflush(stdout);
+               syslog(LOG_DEBUG,"output on");
+               sys->input = true;
+             }
+             else
              {
                sys->vm.regs.eflags |= 0x40;
                sys->vm.regs.eax    &= 0xFF;
                return;
              }
-             else
-             {
-               rc = read(0,&c,1);
-               if (rc < 1)
-               {
-                 sys->vm.regs.eflags |= 0x40;
-                 sys->vm.regs.eax    &= 0xFF;
-                 return;
-               }
-               
-               if (c == '\n')
-               {
-                 LF = true;
-                 c = '\r';
-               }
-             }
            }
-             
-           if (c < '!')
-             syslog(LOG_DEBUG,"input=%d",c);
-           else
-             syslog(LOG_DEBUG,"input=%c",c);
+           
+           
+           c = getchar();
+           
+           if (c == '\n')
+           {
+             sys->input = false;
+             c = '\r';
+           }
            
            sys->vm.regs.eflags &= ~0x40;
            sys->vm.regs.eax    &= ~255;
