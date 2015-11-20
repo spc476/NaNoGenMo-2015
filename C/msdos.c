@@ -438,7 +438,6 @@ static void ms_dos(system__s *sys)
   assert(sys != NULL); 
   
   ah = (sys->vm.regs.eax >> 8) & 255;
-  fprintf(stderr,"SYSCALL %02X\n",ah);
   switch(ah)
   {
     case 0:	/* exit */
@@ -585,7 +584,6 @@ static void ms_dos(system__s *sys)
          ;------------------------------------------------------------*/
          
          fcb->relrec++;
-         dump_fcb__s(fcb);
          break;
          
     case 0x22: /* write record to FCB file */
@@ -612,7 +610,6 @@ static void ms_dos(system__s *sys)
          ;------------------------------------------------------------*/
          
          fcb->relrec++;
-         dump_fcb__s(fcb);
          break;
     
     default:
@@ -678,10 +675,7 @@ int main(int argc,char *argv[])
     }
     
     if (arg == 0x20)
-    {
-      fprintf(stderr,"INT 20h\n");
       break;
-    }
     
     if (arg != 0x21)
     {
@@ -692,7 +686,6 @@ int main(int argc,char *argv[])
     ms_dos(&g_sys);
   }
   
-  dump_memory(g_sys.mem,1024*1024);
   return EXIT_SUCCESS;
 }
 
