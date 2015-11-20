@@ -612,6 +612,7 @@ int main(int argc,char *argv[])
     return EXIT_FAILURE;
   }
   
+  setvbuf(stdout,NULL,_IONBF,0);
   atexit(cleanup);
   crashreport(SIGSEGV);
   
