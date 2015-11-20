@@ -336,14 +336,16 @@ static int open_file(system__s *sys,fcb__s *fcb)
   if (fp == NULL)
     return errno;
   
+  fprintf(stderr,"filesize=%lu\n",(unsigned long)info.st_size);
   fcb->size      = info.st_size;
   sys->fcbs[idx] = fcb;
   sys->fp[idx]   = fp;
+  fcb->recsize   = 128;
   return 0;
 }
 
 /********************************************************************/
-  
+
 static void ms_dos(system__s *sys)
 {
   int     ah;
