@@ -487,13 +487,13 @@ static void ms_dos(system__s *sys)
              syslog(LOG_DEBUG,"input=%c",c);
            
            sys->vm.regs.eflags &= ~0x40;
-           sys->vm.regs.eflags &= 0xFF;
-           sys->vm.regs.eflags |= c;
+           sys->vm.regs.eax    &= ~255;
+           sys->vm.regs.eax    |= c;
          }
          break;
     
     case 0x0F: /* Open file (1.0 version) */
-         sys->vm.regs.eax &= 255;
+         sys->vm.regs.eax &= ~255;
          idx   = sys->vm.regs.ds * 16 + (sys->vm.regs.edx & 0xFFFF);
          assert(idx < 1024*1024uL);
          fcb   = (fcb__s *)&sys->mem[idx];
@@ -507,7 +507,7 @@ static void ms_dos(system__s *sys)
          break;
          
     case 0x10: /* close file */
-         sys->vm.regs.eax &= 255;
+         sys->vm.regs.eax &= ~255;
          idx = sys->vm.regs.ds * 16 + (sys->vm.regs.edx & 0xFFFF);
          fcb = (fcb__s *)&sys->mem[idx];
          i   = find_fcb(sys,fcb);
@@ -518,7 +518,7 @@ static void ms_dos(system__s *sys)
          break;
          
     case 0x13: /* delete file */
-         sys->vm.regs.eax &= 255;
+         sys->vm.regs.eax &= ~255;
          idx = sys->vm.regs.ds * 16 + (sys->vm.regs.edx & 0xFFFF);
          fcb = (fcb__s *)&sys->mem[idx];
          mkfilename(filename,fcb);
@@ -527,7 +527,7 @@ static void ms_dos(system__s *sys)
          break;
          
     case 0x16: /* create file */
-         sys->vm.regs.eax &= 255;
+         sys->vm.regs.eax &= ~255;
          idx   = sys->vm.regs.ds * 16 + (sys->vm.regs.edx & 0xFFFF);
          assert(idx < 1024*1024uL);
          fcb   = (fcb__s *)&sys->mem[idx];
@@ -541,7 +541,7 @@ static void ms_dos(system__s *sys)
          break;
          
     case 0x19: /* return drive --- it's always A */
-         sys->vm.regs.eax &= 255;
+         sys->vm.regs.eax &= ~255;
          break;
          
     case 0x1A: /* set DTA address (sigh) */
@@ -550,7 +550,7 @@ static void ms_dos(system__s *sys)
          break;
     
     case 0x21: /* read record from FCB file */
-         sys->vm.regs.eax &= 255;
+         sys->vm.regs.eax &= ~255;
          idx = sys->vm.regs.ds * 16 + (sys->vm.regs.edx & 0xFFFF);
          fcb = (fcb__s *)&sys->mem[idx];
          i   = find_fcb(sys,fcb);
