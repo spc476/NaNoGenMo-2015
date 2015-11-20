@@ -38,8 +38,10 @@
 #include <errno.h>
 #include <assert.h>
 
+#include <syslog.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/poll.h>
 #include <unistd.h>
 #include <sys/vm86.h>
 #include <sys/mman.h>
@@ -362,16 +364,16 @@ static int find_fcb(system__s *sys,fcb__s *fcb)
 
 /********************************************************************/
 
-static int open_file(system__s *sys,fcb__s *fcb,const char *mode)
+static int open_file(system__s *sys,fcb__s *fcb,bool create)
 {
   char         filename[FILENAME_MAX];
   FILE        *fp;
   int          idx;
   struct stat  info;
+  const char  *mode;
 
   assert(sys  != NULL);
   assert(fcb  != NULL);
-  assert(mode != NULL);
   
   idx = find_freefcb(sys);
   if (idx == -1)
@@ -379,14 +381,23 @@ static int open_file(system__s *sys,fcb__s *fcb,const char *mode)
     
   mkfilename(filename,fcb);
   
-  if (stat(filename,&info) < 0)
-    return errno;
+  if (!create)
+  {
+    if (stat(filename,&info) < 0)
+      return errno;
+    fcb->size = info.st_size;
+    mode      = "r+b";
+  }
+  else
+  {
+    fcb->size = 0;
+    mode      = "w+b";
+  }
   
   fp = fopen(filename,mode);
   if (fp == NULL)
     return errno;
   
-  fcb->size      = info.st_size;
   sys->fcbs[idx] = fcb;
   sys->fp[idx]   = fp;
   fcb->recsize   = 128;
@@ -424,10 +435,60 @@ static void ms_dos(system__s *sys)
            sys->vm.regs.eax &= 0xFF;
            sys->vm.regs.eax |= dl;
          }
+         
+         /*--------------------------------------------------------
+         ; Erm ... okay ... not sure how to handle this.  
+         ;--------------------------------------------------------*/
+         
          else
          {
-           sys->vm.regs.eflags |= 0x40;
-           sys->vm.regs.eax &= 0xFF;
+           static bool LF = false;
+           struct pollfd fds;
+           int           rc;
+           char          c;
+           
+           if (LF)
+           {
+             LF = false;
+             c  = '\n';
+           }
+           else
+           {
+             fds.fd = 0;	/* STDIN */
+             fds.events = POLLIN;
+             rc = poll(&fds,1,0);
+             if (rc <= 0)
+             {
+               sys->vm.regs.eflags |= 0x40;
+               sys->vm.regs.eax    &= 0xFF;
+               return;
+             }
+             else
+             {
+               rc = read(0,&c,1);
+               if (rc < 1)
+               {
+                 sys->vm.regs.eflags |= 0x40;
+                 sys->vm.regs.eax    &= 0xFF;
+                 return;
+               }
+               
+               if (c == '\n')
+               {
+                 LF = true;
+                 c = '\r';
+               }
+             }
+           }
+             
+           if (c < '!')
+             syslog(LOG_DEBUG,"input=%d",c);
+           else
+             syslog(LOG_DEBUG,"input=%c",c);
+           
+           sys->vm.regs.eflags &= ~0x40;
+           sys->vm.regs.eflags &= 0xFF;
+           sys->vm.regs.eflags |= c;
          }
          break;
     
@@ -440,7 +501,7 @@ static void ms_dos(system__s *sys)
            sys->vm.regs.eax |= 255;
          else
          {
-           if (open_file(sys,fcb,"r+b") != 0)
+           if (open_file(sys,fcb,false) != 0)
              sys->vm.regs.eax |= 255;
          }
          break;
@@ -470,11 +531,11 @@ static void ms_dos(system__s *sys)
          idx   = sys->vm.regs.ds * 16 + (sys->vm.regs.edx & 0xFFFF);
          assert(idx < 1024*1024uL);
          fcb   = (fcb__s *)&sys->mem[idx];
-         if (fcb->drive > 0)
+         if (fcb->drive > 1)
            sys->vm.regs.eax |= 255;
          else
          {
-           if (open_file(sys,fcb,"w+b") != 0)
+           if (open_file(sys,fcb,true) != 0)
              sys->vm.regs.eax |= 255;
          }
          break;
