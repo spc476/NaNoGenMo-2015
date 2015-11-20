@@ -452,6 +452,8 @@ static void ms_dos(system__s *sys)
          i   = find_fcb(sys,fcb);
          assert(i > -1);
          fclose(sys->fp[i]);
+         sys->fcbs[i] = NULL;
+         sys->fp[i]   = NULL;
          break;
          
     case 0x13: /* delete file */
