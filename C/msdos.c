@@ -396,14 +396,19 @@ static int open_file(system__s *sys,fcb__s *fcb)
 
 static void ms_dos(system__s *sys)
 {
-  int     ah;
-  int     dl;
-  size_t  idx;
-  fcb__s *fcb;
+  int            ah;
+  int            dl;
+  int            i;
+  size_t         idx;
+  size_t         bufidx;
+  unsigned long  pos;
+  unsigned char *buf;
+  fcb__s        *fcb;
   
   assert(sys != NULL); 
   
   ah = (sys->vm.regs.eax >> 8) & 255;
+  fprintf(stderr,"SYSCALL %02X\n",ah);
   switch(ah)
   {
     case 0:	/* exit */
@@ -438,31 +443,56 @@ static void ms_dos(system__s *sys)
          }
          break;
          
+    case 0x10: /* close file */
+         sys->vm.regs.eax &= 255;
+         idx = sys->vm.regs.ds * 16 + (sys->vm.regs.edx & 0xFFFF);
+         fcb = (fcb__s *)&sys->mem[idx];
+         i   = find_fcb(sys,fcb);
+         assert(i > -1);
+         fclose(sys->fp[i]);
+         break;
+         
     case 0x1A: /* set DTA address (sigh) */
          sys->dtaseg = sys->vm.regs.ds;
          sys->dtaoff = sys->vm.regs.edx & 0xFFFF;
          break;
     
     case 0x21: /* read record from FCB file */
-         fprintf(
-           stderr,
-           "name:    %.8s\n"
-           "ext:     %.3s\n"
-           "cblock:  %d\n"
-           "recsize: %d\n"
-           "size:    %lu\n"
-           "crecnum: %d\n"
-           "relrec:  %lu\n"
-           "\n",
-           fcb->name,
-           fcb->ext,
-           fcb->cblock,
-           fcb->recsize,
-           (unsigned long)fcb->size,
-           fcb->crecnum,
-           (unsigned long)fcb->relrec
-         );
-         exit(1);
+         sys->vm.regs.eax &= 255;
+         idx = sys->vm.regs.ds * 16 + (sys->vm.regs.edx & 0xFFFF);
+         fcb = (fcb__s *)&sys->mem[idx];
+         i   = find_fcb(sys,fcb);
+         assert(i > -1);
+         
+         pos = fcb->relrec * fcb->recsize;
+         if (pos > fcb->size)
+         {
+           sys->vm.regs.eax |= 1;
+           break;
+         }
+         
+         fcb->cblock  = (pos / 512) & 0xFFFF;       /* I guess? */
+         fcb->crecnum = (pos % 512) / fcb->recsize; /* I guess? */
+         fseek(sys->fp[i],pos,SEEK_SET);
+         bufidx = (size_t)sys->dtaseg * 16 + (size_t)sys->dtaoff;
+         buf    = &sys->mem[bufidx];
+         if (fcb->size - pos < fcb->recsize)
+         {
+           sys->vm.regs.eax |= 3;
+           memset(buf,0,fcb->recsize);
+         }
+         
+         fread(buf,1,fcb->recsize,sys->fp[i]);
+         
+         /*-----------------------------------------------------------
+         ; all the documentation I've read says this function DOES NOT
+         ; increment the relative record number.  But RACTER (my test
+         ; program) won't work properly unless relrec IS incremented. 
+         ; MS-DOS bug?  Documentation problem?
+         ;------------------------------------------------------------*/
+         
+         fcb->relrec++;
+         dump_fcb__s(fcb);
          break;
          
     default:
