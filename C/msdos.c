@@ -39,7 +39,6 @@
 #include <errno.h>
 #include <assert.h>
 
-#include <syslog.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/poll.h>
@@ -469,7 +468,6 @@ static void ms_dos(system__s *sys)
              if (strcmp(sys->prompt,"\r\n>") == 0)
              {
                fflush(stdout);
-               syslog(LOG_DEBUG,"output on");
                sys->input = true;
              }
              else
