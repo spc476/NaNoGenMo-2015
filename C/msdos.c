@@ -452,6 +452,10 @@ static void ms_dos(system__s *sys)
          fclose(sys->fp[i]);
          break;
          
+    case 0x19: /* return drive --- it's always A */
+         sys->vm.regs.eax &= 255;
+         break;
+         
     case 0x1A: /* set DTA address (sigh) */
          sys->dtaseg = sys->vm.regs.ds;
          sys->dtaoff = sys->vm.regs.edx & 0xFFFF;
