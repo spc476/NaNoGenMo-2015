@@ -362,15 +362,16 @@ static int find_fcb(system__s *sys,fcb__s *fcb)
 
 /********************************************************************/
 
-static int open_file(system__s *sys,fcb__s *fcb)
+static int open_file(system__s *sys,fcb__s *fcb,const char *mode)
 {
   char         filename[FILENAME_MAX];
   FILE        *fp;
   int          idx;
   struct stat  info;
 
-  assert(sys != NULL);
-  assert(fcb != NULL);
+  assert(sys  != NULL);
+  assert(fcb  != NULL);
+  assert(mode != NULL);
   
   idx = find_freefcb(sys);
   if (idx == -1)
@@ -381,7 +382,7 @@ static int open_file(system__s *sys,fcb__s *fcb)
   if (stat(filename,&info) < 0)
     return errno;
   
-  fp = fopen(filename,"r+b");
+  fp = fopen(filename,mode);
   if (fp == NULL)
     return errno;
   
@@ -439,7 +440,7 @@ static void ms_dos(system__s *sys)
            sys->vm.regs.eax |= 255;
          else
          {
-           if (open_file(sys,fcb) != 0)
+           if (open_file(sys,fcb,"r+b") != 0)
              sys->vm.regs.eax |= 255;
          }
          break;
@@ -460,6 +461,20 @@ static void ms_dos(system__s *sys)
          mkfilename(filename,fcb);
          if (remove(filename) == -1)
            sys->vm.regs.eax |= 255;
+         break;
+         
+    case 0x16: /* create file */
+         sys->vm.regs.eax &= 255;
+         idx   = sys->vm.regs.ds * 16 + (sys->vm.regs.edx & 0xFFFF);
+         assert(idx < 1024*1024uL);
+         fcb   = (fcb__s *)&sys->mem[idx];
+         if (fcb->drive > 0)
+           sys->vm.regs.eax |= 255;
+         else
+         {
+           if (open_file(sys,fcb,"w+b") != 0)
+             sys->vm.regs.eax |= 255;
+         }
          break;
          
     case 0x19: /* return drive --- it's always A */
