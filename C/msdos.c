@@ -132,7 +132,8 @@ typedef struct system
 
 /********************************************************************/
 
-static void dump_memory(unsigned char *mem,size_t size)
+static void dump_memory(const unsigned char *,size_t) __attribute__((unused));
+static void dump_memory(const unsigned char *mem,size_t size)
 {
   FILE *fp = fopen("msdos.core","wb");
   if (fp != NULL)
@@ -144,7 +145,62 @@ static void dump_memory(unsigned char *mem,size_t size)
 
 /********************************************************************/
 
-static void dump_regs(struct vm86_regs *regs)
+static void dump_exehdr__s(const exehdr__s *) __attribute__((unused));
+static void dump_exehdr__s(const exehdr__s *hdr)
+{
+  fprintf(
+    stderr,
+    "lastpage:  %d\n"
+    "filepages: %d (%u)\n"
+    "numreloc:  %d\n"
+    "hdrpara:   %d\n"
+    "minalloc:  %d\n"
+    "maxalloc:  %d\n"
+    "SS:SP:     %04X:%04X\n"
+    "CS:IP:     %04X:%04X\n"
+    "reltable:  %04X\n"
+    "overlay:   %d\n"
+    "\n",
+    hdr->lastpagesize,
+    hdr->filepages , hdr->filepages * 512 + hdr->lastpagesize,
+    hdr->numreloc,
+    hdr->hdrpara,
+    hdr->minalloc,
+    hdr->maxalloc,
+    hdr->init_ss,hdr->init_sp,
+    hdr->init_cs,hdr->init_ip,
+    hdr->reltable,
+    hdr->overlay
+  );
+}
+
+/********************************************************************/
+
+static void dump_fcb__s(const fcb__s *) __attribute__((unused));
+static void dump_fcb__s(const fcb__s *fcb)
+{
+  fprintf(
+    stderr,
+    "file:    %c %.8s %.3s\n"
+    "cblock:  %d\n"
+    "recsize: %d\n"
+    "size:    %zu\n"
+    "crecnum: %d\n"
+    "relrec:  %lu\n"
+    "\n",
+    fcb->drive + '@', fcb->name,fcb->ext,
+    fcb->cblock,
+    fcb->recsize,
+    fcb->size,
+    fcb->crecnum,
+    (unsigned long)fcb->relrec
+  );
+}
+
+/********************************************************************/
+
+static void dump_regs(const struct vm86_regs *) __attribute__((unused));
+static void dump_regs(const struct vm86_regs *regs)
 {
   char flags[17];
   
@@ -239,32 +295,6 @@ static int load_exe(
   }
   
   fread(&hdr,sizeof(hdr),1,fp);
-#if 0
-  fprintf(
-    stderr,
-    "lastpage:  %d\n"
-    "filepages: %d (%u)\n"
-    "numreloc:  %d\n"
-    "hdrpara:   %d\n"
-    "minalloc:  %d\n"
-    "maxalloc:  %d\n"
-    "SS:SP:     %04X:%04X\n"
-    "CS:IP:     %04X:%04X\n"
-    "reltable:  %04X\n"
-    "overlay:   %d\n"
-    "\n",
-    hdr.lastpagesize,
-    hdr.filepages , hdr.filepages * 512 + hdr.lastpagesize,
-    hdr.numreloc,
-    hdr.hdrpara,
-    hdr.minalloc,
-    hdr.maxalloc,
-    hdr.init_ss,hdr.init_sp,
-    hdr.init_cs,hdr.init_ip,
-    hdr.reltable,
-    hdr.overlay
-  );
-#endif
   regs->cs  = hdr.init_cs + SEG_LOAD;
   regs->eip = hdr.init_ip;
   regs->ss  = hdr.init_ss + SEG_LOAD;
@@ -355,7 +385,6 @@ static int open_file(system__s *sys,fcb__s *fcb)
   if (fp == NULL)
     return errno;
   
-  fprintf(stderr,"filesize=%lu\n",(unsigned long)info.st_size);
   fcb->size      = info.st_size;
   sys->fcbs[idx] = fcb;
   sys->fp[idx]   = fp;
