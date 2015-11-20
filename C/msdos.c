@@ -404,6 +404,7 @@ static void ms_dos(system__s *sys)
   unsigned long  pos;
   unsigned char *buf;
   fcb__s        *fcb;
+  char           filename[FILENAME_MAX];
   
   assert(sys != NULL); 
   
@@ -450,6 +451,15 @@ static void ms_dos(system__s *sys)
          i   = find_fcb(sys,fcb);
          assert(i > -1);
          fclose(sys->fp[i]);
+         break;
+         
+    case 0x13: /* delete file */
+         sys->vm.regs.eax &= 255;
+         idx = sys->vm.regs.ds * 16 + (sys->vm.regs.edx & 0xFFFF);
+         fcb = (fcb__s *)&sys->mem[idx];
+         mkfilename(filename,fcb);
+         if (remove(filename) == -1)
+           sys->vm.regs.eax |= 255;
          break;
          
     case 0x19: /* return drive --- it's always A */
