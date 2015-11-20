@@ -556,7 +556,12 @@ int main(int argc,char *argv[])
       return EXIT_FAILURE;
     }
     
-    if (arg == 0x20) break;
+    if (arg == 0x20)
+    {
+      fprintf(stderr,"INT 20h\n");
+      break;
+    }
+    
     if (arg != 0x21)
     {
       fprintf(stderr,"unexpected interrupt %02X\n",arg);
