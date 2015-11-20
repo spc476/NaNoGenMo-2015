@@ -465,10 +465,7 @@ static void ms_dos(system__s *sys)
            if (!sys->input)
            {
              if (strcmp(sys->prompt,"\r\n>") == 0)
-             {
-               fflush(stdout);
                sys->input = true;
-             }
              else
              {
                sys->vm.regs.eflags |= 0x40;
