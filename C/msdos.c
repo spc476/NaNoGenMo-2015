@@ -126,7 +126,6 @@ typedef struct system
   unsigned char          *mem;
   fcb__s                 *fcbs[16];
   FILE                   *fp[16];
-  size_t                  fcb_max;
   uint16_t                dtaseg;
   uint16_t                dtaoff;
 } system__s;
@@ -313,20 +312,40 @@ static void mkfilename(char *fname,fcb__s *fcb)
 
 /********************************************************************/
 
+static int find_freefcb(system__s *sys)
+{
+  for (int i = 0 ; i < 16 ; i++)
+    if (sys->fcbs[i] == NULL)
+      return i;
+  return -1;
+}
+
+/********************************************************************/
+
+static int find_fcb(system__s *sys,fcb__s *fcb)
+{
+  for (int i = 0 ; i < 16 ; i++)
+    if (sys->fcbs[i] == fcb)
+      return i;
+  return -1;
+}
+
+/********************************************************************/
+
 static int open_file(system__s *sys,fcb__s *fcb)
 {
   char         filename[FILENAME_MAX];
   FILE        *fp;
-  size_t       idx;
+  int          idx;
   struct stat  info;
 
   assert(sys != NULL);
   assert(fcb != NULL);
   
-  if (sys->fcb_max == 16)
+  idx = find_freefcb(sys);
+  if (idx == -1)
     return EMFILE;
-  
-  idx = sys->fcb_max++;
+    
   mkfilename(filename,fcb);
   
   if (stat(filename,&info) < 0)
