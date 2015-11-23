@@ -474,7 +474,6 @@ static void ms_dos(system__s *sys)
              }
            }
            
-           
            c = getchar();
            
            if (c == '\n')
