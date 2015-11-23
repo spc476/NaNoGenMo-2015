@@ -30,6 +30,7 @@
 /*	PROMPT=		*/
 /*	TMP=		*/
 
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -291,7 +292,7 @@ static int load_exe(
   psp->warmboot[0]   = 0xCD;
   psp->warmboot[1]   = 0x20;
   psp->oldmscall_jmp = 0x9A;
-  psp->oldmscall_off = 0;
+  psp->oldmscall_off = offsetof(psp__s,mscall);
   psp->oldmscall_seg = SEG_PSP;
   psp->termaddr[0]   = 0;
   psp->termaddr[1]   = SEG_PSP;
