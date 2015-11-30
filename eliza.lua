@@ -7,6 +7,7 @@ local Cs   = lpeg.Cs
 local C    = lpeg.C 
 local P    = lpeg.P
 local R    = lpeg.R
+local S    = lpeg.S
 
 local keyword_reply =
 {
@@ -362,6 +363,7 @@ conj = Cs((
 	   + subpattern " I'm"  / " you're "
 	   + subpattern " me"   / " you "
 	   + subpattern " I"    / " you "	-- added spc
+	   + (S".?!" * P(-1))   / ""		-- added spc, remove ending punctuation
 	   + C(1)
 	  )^1)
 
@@ -370,8 +372,11 @@ for input in io.lines() do
   local answers  = keyword_reply[key]
   local answer   = answers[math.random(#answers)]
   
-  print(answer)
-  print("",rest)
-  print("",conj:match(rest))
-  print()  
+  if answer:match("%*$") then
+    print(string.format("%s%s?",answer:sub(1,-2),conj:match(rest)))
+  else
+    print(answer)
+  end
+  
+  print()
 end
