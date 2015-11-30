@@ -11,11 +11,14 @@ local S    = lpeg.S
 
 -- *************************************************************************
 
+local syslog = require "org.conman.syslog"
 local function readline(line)
   local c = io.stdin:read(1)
   if not c then
+    syslog('debug',"inputnil=%q",line)
     return line
   elseif c == '>' then
+    syslog('debug',"input=%q",line)
     return line
   else
     return readline(line .. c)
@@ -398,7 +401,8 @@ local trim = Cs((
 		)^1)
 
 local transcript = io.open("/tmp/transcript.txt","w")
- 
+transcript:setvbuf('no')
+
 io.stdin:setvbuf('no')
 io.stdout:setvbuf('no')
 local count = 0
@@ -408,22 +412,23 @@ line = readline("")
 transcript:write("<",line,"\n")
 print("Eliza")
 transcript:write(">","Eliza","\n")
-line = readline("")
-transcript:write("<",line,"\n")
 
-while count < 50000 do
+--line = readline("")
+--transcript:write("<",line,"\n")
+
+while count < 10000 do
   line = readline("")
   line = trim:match(line)
   
   transcript:write("<",line,"\n")
   count = count + wordcount(line)
   
-  local key,res = parse:match(input)
-  local answers = keyword_reply[key]
-  local answer  = answers[math.random(#answers)]
+  local key,rest = parse:match(line)
+  local answers  = keyword_reply[key]
+  local answer   = answers[math.random(#answers)]
   
   if answer:match("%*$") then
-    answer = string.format("%s%s?",answer:sub(1,-2),conj:match(rest))    
+    answer = string.format("%s%s?",answer:sub(1,-2),conj:match(rest))
   end
   
   print(answer)
