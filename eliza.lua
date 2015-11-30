@@ -9,6 +9,31 @@ local P    = lpeg.P
 local R    = lpeg.R
 local S    = lpeg.S
 
+-- *************************************************************************
+
+local function readline(line)
+  local c = io.stdin:read(1)
+  if not c then
+    return line
+  elseif c == '>' then
+    return line
+  else
+    return readline(line .. c)
+  end
+end
+
+-- *************************************************************************
+
+local function wordcount(line)
+  local count = 0
+  for _ in line:gmatch("%s+") do
+    count = count + 1
+  end
+  return count
+end
+
+-- *************************************************************************
+
 local keyword_reply =
 {
   ["can you"] =
@@ -354,7 +379,7 @@ end
 local parse    = (P(1) - (keyword * nonalpha))^0 * keyword * C(P(1)^0) * Cp()
                + Cc("","") * Cp()
 
-conj = Cs((
+local conj = Cs((
 	     subpattern " are"  / " am "
 	   + subpattern " were" / " was "
 	   + subpattern " you"  / " me "
@@ -367,16 +392,58 @@ conj = Cs((
 	   + C(1)
 	  )^1)
 
-for input in io.lines() do
-  local key,rest = parse:match(input)
-  local answers  = keyword_reply[key]
-  local answer   = answers[math.random(#answers)]
+local trim = Cs((
+		  S"\1\32"^1 / " "
+		  + C(1)
+		)^1)
+
+local transcript = io.open("/tmp/transcript.txt","w")
+ 
+io.stdin:setvbuf('no')
+io.stdout:setvbuf('no')
+local count = 0
+local line
+
+line = readline("")
+transcript:write("<",line,"\n")
+print("Eliza")
+transcript:write(">","Eliza","\n")
+line = readline("")
+transcript:write("<",line,"\n")
+
+while count < 50000 do
+  line = readline("")
+  line = trim:match(line)
+  
+  transcript:write("<",line,"\n")
+  count = count + wordcount(line)
+  
+  local key,res = parse:match(input)
+  local answers = keyword_reply[key]
+  local answer  = answers[math.random(#answers)]
   
   if answer:match("%*$") then
-    print(string.format("%s%s?",answer:sub(1,-2),conj:match(rest)))
-  else
-    print(answer)
+    answer = string.format("%s%s?",answer:sub(1,-2),conj:match(rest))    
   end
   
-  print()
+  print(answer)
+  transcript:write(">",answer,"\n")
+  count = count + wordcount(answer)
 end
+
+line = readline("")
+line = trim:match(line)
+transcript:write("<",line,"\n")
+
+print("quit")
+transcript:write(">quit\n")
+line = readline("")
+line = trim:match(line)
+transcript:write("<",line,"\n")
+print("yes")
+transcript:write(">yes\n")
+line = readline("")
+line = trim:match(line)
+transcript:write("<",line,"\n")
+
+transcript:close()
