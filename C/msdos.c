@@ -633,7 +633,8 @@ int main(int argc,char *argv[])
     fprintf(stderr,"usage: %s file\n",argv[0]);
     return EXIT_FAILURE;
   }
-  
+
+  setvbuf(stdin,NULL,_IONBF,0);  
   setvbuf(stdout,NULL,_IONBF,0);
   atexit(cleanup);
   crashreport(SIGSEGV);
