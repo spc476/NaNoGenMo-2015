@@ -1,0 +1,106 @@
+
+                         THE PSYCHOTHERAPY OF RACTER
+                                     OR
+                    THE DESCENT INTO MADNESS OF DR. ELIZA
+
+                          "Written" by Sean Conner.
+            Based upon an idea from A. K. Dewdney from his book,
+                           _The Armchair Universe_
+
+  This is my 2015 entry into NaNoGenMo [1].  It is a failed attempt, but
+only because I didn't feel the need to either debug the issue (more below)
+or run it enough times to get the 50,000 words.  We need failures in order
+to progress, and man, is this a failure.
+
+  Anyway, on with the idea.  The idea, presented in A. K. Dewdney's book, is
+to have Racter [2] talk with Eliza.  It sounds simple in theory, although
+like most theories, it is at complete odds with reality.  Problem one,
+securing both programs.  There are many, many versions of Eliza out there,
+but most of them seem to be based off one written in BASIC in 1978 (in this
+repository as 'ELIZA.BAS'.  I wrote my own version, 'eliza.lua' based on
+this version.
+
+  This is not to say there aren't better versions out there.  Apparently,
+the original 1965 version of Eliza was based on the "script" (and I use
+quotes beacause it's not a script in any known language to me)
+'Eliza-script.txt'.  I started to write a version based on this (as it
+appears to be more "chatty" than the other one) but I put it on the back
+burner to get Racter in a state where it could talk to another program.
+
+  The version of Racter I used for this is *not* checked into this
+repository.  It's not open source, nor did I write it.  It is easy to come
+by, and I used the MS-DOS version, so if you want to try this out for
+yourselves, that's the version to use with this mess.  If you come across
+a distribution of Racter for MS-DOS, and it comes with these files:
+
+APHOR.RAC  IV.C     JOKES.RAC   RAPT2.RAC     SUE.RAC     VOCAB3.RAC
+BACKQ.RAC  IV.RAC   KEY.RAC     SCANDAL.RAC   VERBQ.RAC   WHATQ.RAC
+BILL.RAC   IV1.C    RACTER.EXE  STORIES.RAC   VOCAB1.RAC  WHEREQ.RAC
+HOME.RAC   IV1.RAC  RAPT.RAC    STORIES1.RAC  VOCAB2.RAC  WHYQ.RAC
+
+you have the right version.  For this, they should reside in '/tmp/racter'
+although you have the source, you can change it.  Anyway, on with the story.
+The next step was to run this version of Racter since that's all I had.  I
+tried using DOSBox, and while it did run, it runs in its own private
+universe.  There's no piping in data into and out of, the MS-DOS emulator. I
+didn't try DOSEmu, but I suspect the issue would be the same.
+
+  Now, why didn't I just get an Eliza version that runs under MS-DOS and run
+both there?  Well, MS-DOS doesn't multitask and that, right there, is a
+major problem.  I'm not terribly familiar with DeskView or OS/2 (much less
+trying to find copies of those programs) but even so, I'm not sure they can
+allow two arbitrary MS-DOS programs to talk to each other.  You *can* do
+that under Unix, but it's far from trivial (at least, to get two otherwise
+independent programs to talk back and forth).
+
+  To me, the easiest solution was to write enough of a MS-DOS emulator to
+run Racter and to allow me to pipe data into and out of it.  You'll find
+this program under the 'C' directory.  And it works, allowing you to run
+Racter right from the Unix command line, assuming you run 32-bit Linux on
+the x86 platform because it makes use of the vm86() system call that only
+exists on 32-bit Linux systems on the x86 platform (and in fact, is a pretty
+decent example of using that system call).
+
+  It was at this point that my girlfriend and I took a weekend road trip
+where-in I came back with an upper-respiratory infection that pretty much
+knocked me out for the rest of the month.  So no better verion of Eliza.
+
+  Now it came down to getting the two to talk.  As I said, this is doable,
+but not quite trivial.  You need pipe the output of Eliza to the input of
+Racter, and the output of Racter to the input of Eliza and as far as I know,
+there's no way to do this from the command line.  That's where the
+'couch.lua' program comes in.  In creates the pipes, then runs Eliza and
+Racter, connectinog the pipes up properly and generally getting things
+started.
+
+  And no, it does not run for 50,000.  It can barely get 4,000 on a *good*
+run.  Half the time Racter just stops, and the other half it appears that
+both programs are listening and thus, nothing happens.  There's some race
+condition or deadlock that happens with the pipes that causes this issue but
+it's quite hard to debug since I'm running an executable for an 8088 in one
+process and a Lua script in another process from a third process.  And
+seeing how it's the last day of the month, I don't think I can solve this in
+that amount of time.
+
+  And I really don't want to sit there running this Rube Goldberg
+contraption over and over again for an hour or so to bulk up the word count. 
+I'll take the fail.
+
+  But I do have four runs in the 'novel' subdirectory, which total almost
+16,000 words.  
+
+  Enjoy. 
+
+[1]	https://github.com/dariusk/NaNoGenMo-2015
+
+[2]	An AI [3] written in BASIC, of all langauges.  Actually, the 
+	interpreter is written in BASIC (which itself is an interpreter)
+	and what is run is a program written in INRAC.  This is the only 
+	program written in this language.
+
+	Good luck in finding more than two web pages about this language
+	on the Internet.  Trust me on this[4].
+
+[3]	Artificial Insanity
+
+[4]	I wrote one of the two pages.
