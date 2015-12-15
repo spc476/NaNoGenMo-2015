@@ -17,11 +17,6 @@
 --
 -- Comments, questions and criticisms can be sent to: sean@conman.org
 --
--- ====================================================================
---
--- The Eliza program.  This is *not* a general use program, since it assumes
--- it will be in communication (via a pipe) to another program.  
---
 -- ********************************************************************
 
              require "org.conman.math".randomseed()
@@ -34,32 +29,6 @@ local C    = lpeg.C
 local P    = lpeg.P
 local R    = lpeg.R
 local S    = lpeg.S
-
--- *************************************************************************
-
-local syslog = require "org.conman.syslog"
-local function readline(line)
-  local c = io.stdin:read(1)
-  if not c then
-    syslog('debug',"inputnil=%q",line)
-    return line
-  elseif c == '>' then
-    syslog('debug',"input=%q",line)
-    return line
-  else
-    return readline(line .. c)
-  end
-end
-
--- *************************************************************************
-
-local function wordcount(line)
-  local count = 0
-  for _ in line:gmatch("%s+") do
-    count = count + 1
-  end
-  return count
-end
 
 -- *************************************************************************
 
@@ -426,29 +395,13 @@ local trim = Cs((
 		  + C(1)
 		)^1)
 
-local transcript = io.open("/tmp/transcript.txt","w")
-transcript:setvbuf('no')
-
 io.stdin:setvbuf('no')
 io.stdout:setvbuf('no')
-local count = 0
-local line
 
-line = readline("")
-transcript:write("<",line,"\n")
-print("Eliza")
-transcript:write(">","Eliza","\n")
+print("Hi!  I'm Eliza.  What's your problem?")
 
---line = readline("")
---transcript:write("<",line,"\n")
-
-while count < 10000 do
-  line = readline("")
+for line in io.lines() do
   line = trim:match(line)
-  
-  transcript:write("<",line,"\n")
-  count = count + wordcount(line)
-  
   local key,rest = parse:match(line)
   local answers  = keyword_reply[key]
   local answer   = answers[math.random(#answers)]
@@ -458,23 +411,4 @@ while count < 10000 do
   end
   
   print(answer)
-  transcript:write(">",answer,"\n")
-  count = count + wordcount(answer)
 end
-
-line = readline("")
-line = trim:match(line)
-transcript:write("<",line,"\n")
-
-print("quit")
-transcript:write(">quit\n")
-line = readline("")
-line = trim:match(line)
-transcript:write("<",line,"\n")
-print("yes")
-transcript:write(">yes\n")
-line = readline("")
-line = trim:match(line)
-transcript:write("<",line,"\n")
-
-transcript:close()
