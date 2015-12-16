@@ -127,10 +127,13 @@ if racterid == 0 then
   signal.default('child')
   fsys.chdir("/tmp/racter")
   io.open("IV.C","w"):close()
+  local stdout = io.open("/tmp/racter.stderr","w")
   
   fsys.dup(to_racter.read,fsys.STDIN)
   fsys.dup(from_racter.write,fsys.STDOUT)
+  fsys.dup(stdout,fsys.STDERR)
   
+  stdout:close()
   to_racter.read:close()
   to_racter.write:close()
   from_racter.read:close()
