@@ -642,6 +642,7 @@ int main(int argc,char *argv[])
     "INTx",
     "STI",
     "PICRETURN",
+    "(unknown)",
     "TRAP"
   };
   
