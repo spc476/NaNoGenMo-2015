@@ -102,7 +102,7 @@ signal.catch('child',function()
   else
     stop_racter()
   end
-  os.exit(1)
+  os.exit(8)
 end)
 
 local to_racter   = fsys.pipe(true)
@@ -145,7 +145,7 @@ if racterid == 0 then
   from_eliza.write:close()
   
   process.exec("/home/spc/writings/nanogenmo/2015/C/msdos",{ "RACTER.EXE" })
-  process.exit(1)
+  process.exit(9)
 else
   print("RACTER",racterid)
 end
@@ -168,7 +168,7 @@ if elizaid == 0 then
   from_eliza.write:close()
   
   process.exec("/usr/local/bin/lua",{ "eliza.lua" })
-  process.exit(1)
+  process.exit(10)
 else
   print("ELIZA",elizaid)
 end

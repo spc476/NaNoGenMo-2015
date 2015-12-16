@@ -449,7 +449,7 @@ static void ms_dos(system__s *sys)
   switch(ah)
   {
     case 0:	/* exit */
-         exit(0);
+         exit(100);
     
     case 0x06: /* direct console I/O */
          dl = sys->vm.regs.edx & 255;
@@ -648,7 +648,7 @@ int main(int argc,char *argv[])
   if (argc < 2)
   {
     fprintf(stderr,"usage: %s file\n",argv[0]);
-    return EXIT_FAILURE;
+    exit(2);
   }
 
   setvbuf(stdin,NULL,_IONBF,0);  
@@ -660,7 +660,7 @@ int main(int argc,char *argv[])
   if (g_sys.mem == MAP_FAILED)
   {
     perror("mmap()");
-    return EXIT_FAILURE;
+    exit(3);
   }
   
   memset(g_sys.mem,0xCC,1024*1024);  
@@ -680,7 +680,7 @@ int main(int argc,char *argv[])
     if (rc < 0)
     {
       perror("vm86()");
-      return EXIT_FAILURE;
+      exit(4);
     }
     
     if (type != VM86_INTx)
@@ -688,7 +688,7 @@ int main(int argc,char *argv[])
       fprintf(stderr,"ERROR: type=%s arg=%d\n",vmtypes[type],arg);
       dump_regs(&g_sys.vm.regs);
       dump_memory(g_sys.mem,1024uL * 1024uL);
-      return EXIT_FAILURE;
+      exit(5);
     }
     
     if (arg == 0x20)
@@ -696,19 +696,19 @@ int main(int argc,char *argv[])
       fprintf(stderr,"INT 20h\n");
       dump_regs(&g_sys.vm.regs);
       dump_memory(g_sys.mem,1024uL * 1024uL);
-      break;
+      exit(7);
     }
     
     if (arg != 0x21)
     {
       fprintf(stderr,"unexpected interrupt %02X\n",arg);
-      return EXIT_FAILURE;
+      exit(6);
     }
     
     ms_dos(&g_sys);
   }
   
-  return EXIT_SUCCESS;
+  return 0;
 }
 
 /********************************************************************/
