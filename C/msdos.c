@@ -685,12 +685,19 @@ int main(int argc,char *argv[])
     
     if (type != VM86_INTx)
     {
-      fprintf(stderr,"ERROR: type=%d arg=%d\n",type,arg);
+      fprintf(stderr,"ERROR: type=%s arg=%d\n",vmtypes[type],arg);
+      dump_regs(&g_sys.vm.regs);
+      dump_memory(g_sys.mem,1024uL * 1024uL);
       return EXIT_FAILURE;
     }
     
     if (arg == 0x20)
+    {
+      fprintf(stderr,"INT 20h\n");
+      dump_regs(&g_sys.vm.regs);
+      dump_memory(g_sys.mem,1024uL * 1024uL);
       break;
+    }
     
     if (arg != 0x21)
     {
