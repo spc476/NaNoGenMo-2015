@@ -398,7 +398,7 @@ local trim = Cs((
 io.stdin:setvbuf('no')
 io.stdout:setvbuf('no')
 
-print("Hi!  I'm Eliza.  What's your problem?")
+print("What's your problem?")
 
 for line in io.lines() do
   line = trim:match(line)
