@@ -295,17 +295,23 @@ static int load_exe(
   psp->oldmscall_jmp = 0x9A;
   psp->oldmscall_off = offsetof(psp__s,mscall);
   psp->oldmscall_seg = SEG_PSP;
-  psp->termaddr[0]   = 0;
+  psp->termaddr[0]   = 129;
   psp->termaddr[1]   = SEG_PSP;
-  psp->ctrlcaddr[0]  = 0;
+  psp->ctrlcaddr[0]  = 131;
   psp->ctrlcaddr[1]  = SEG_PSP;
-  psp->erroraddr[0]  = 0;
+  psp->erroraddr[0]  = 133;
   psp->erroraddr[1]  = SEG_PSP;
   psp->envp          = SEG_ENV;
   psp->mscall[0]     = 0xCD;
   psp->mscall[1]     = 0x21;
   psp->mscall[2]     = 0xCB;
   psp->cmdlen        = 0;
+  psp->cmd[0]        = 0xCD;
+  psp->cmd[1]        = 0x30;
+  psp->cmd[2]        = 0xCD;
+  psp->cmd[3]        = 0x31;
+  psp->cmd[4]        = 0xCD;
+  psp->cmd[5]        = 0x32;
   
   fp = fopen(fname,"rb");
   if (fp == NULL)
