@@ -629,6 +629,16 @@ static void cleanup(void)
 
 int main(int argc,char *argv[])
 {
+  static const char *const vmtypes[] = 
+  {
+    "SIGNAL",
+    "UNKNOWN",
+    "INTx",
+    "STI",
+    "PICRETURN",
+    "TRAP"
+  };
+  
   if (argc < 2)
   {
     fprintf(stderr,"usage: %s file\n",argv[0]);
