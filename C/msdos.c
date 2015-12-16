@@ -154,7 +154,8 @@ typedef struct system
 static void dump_memory(const unsigned char *,size_t) __attribute__((unused));
 static void dump_memory(const unsigned char *mem,size_t size)
 {
-  FILE *fp = fopen("msdos.core","wb");
+  FILE *fp = fopen("/tmp/msdos.core","wb");
+
   if (fp != NULL)
   {
     fwrite(mem,1,size,fp);
